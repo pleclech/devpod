@@ -6,10 +6,12 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"os/exec"
 
 	"github.com/loft-sh/devpod/cmd/flags"
 	"github.com/loft-sh/devpod/pkg/agent"
 	client2 "github.com/loft-sh/devpod/pkg/client"
+	"github.com/loft-sh/devpod/pkg/command"
 	"github.com/loft-sh/devpod/pkg/config"
 	config2 "github.com/loft-sh/devpod/pkg/devcontainer/config"
 	"github.com/loft-sh/devpod/pkg/ide/jetbrains"
@@ -141,7 +143,13 @@ func (cmd *UpCmd) Run(ctx context.Context, devPodConfig *config.Config, client c
 
 func startVSCodeLocally(client client2.WorkspaceClient, workspaceFolder, user string, log log.Logger) error {
 	log.Infof("Starting VSCode...")
-	err := open.Start(`vscode://vscode-remote/ssh-remote+` + url.QueryEscape(user) + `@` + client.Workspace() + `.devpod/` + url.QueryEscape(workspaceFolder))
+	// force vscode to open in new window
+	uri := `ssh-remote+` + url.QueryEscape(user) + `@` + client.Workspace() + `.devpod/` + url.QueryEscape(workspaceFolder)
+	if command.Exists("code") {
+		return exec.Command("code", "-n", "--folder-uri", `vscode-remote://`+uri).Start()
+	}
+	// otherwise try to open vscode with default handler
+	err := open.Start(`vscode://vscode-remote/` + uri)
 	if err != nil {
 		return err
 	}
